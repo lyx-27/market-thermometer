@@ -45,7 +45,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: linear-gradient(158deg, rgba(38, 44, 62, 0.34) 0%, rgba(15, 18, 28, 0.46) 100%);
+  background: linear-gradient(158deg, rgba(38, 44, 62, var(--bg-a1, 0.34)) 0%, rgba(15, 18, 28, var(--bg-a2, 0.46)) 100%);
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 18px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 0.5px rgba(255, 255, 255, 0.04);
@@ -393,4 +393,51 @@ body {
 
 .dim {
   opacity: 0.38;
+}
+
+/* --------------------- background-opacity slider ------------------------- */
+.slider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px 0;
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 2;
+  -webkit-app-region: no-drag;
+}
+.slider-label {
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--w-46);
+  white-space: nowrap;
+}
+.slider-track {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--w-16);
+  cursor: pointer;
+}
+.slider-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--w-88);
+  pointer-events: none;
+}
+.slider-knob {
+  position: absolute;
+  top: 50%;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
 }

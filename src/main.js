@@ -37,13 +37,13 @@ async function tick() {
 function createWindow() {
   const { workArea } = screen.getPrimaryDisplay();
   const width = 486;
-  const height = 200;
+  const height = 244;
 
   win = new BrowserWindow({
     width,
     height,
     minWidth: 380,
-    minHeight: 160,
+    minHeight: 200,
     x: workArea.x + workArea.width - width - 20,
     y: workArea.y + 20,
     frame: false,

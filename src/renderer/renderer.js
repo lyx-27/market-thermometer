@@ -167,3 +167,49 @@ document.getElementById('pin').addEventListener('click', async (e) => {
   const pinned = await window.api.togglePin();
   e.target.style.opacity = pinned ? '1' : '0.4';
 });
+
+/* ---- background-opacity slider (background layer ONLY; text stays 100%) ---- */
+(function initOpacitySlider() {
+  const widget = document.querySelector('.widget');
+  const track = document.getElementById('slider-track');
+  const fill = document.getElementById('slider-fill');
+  const knob = document.getElementById('slider-knob');
+  if (!widget || !track) return;
+  const KEY = 'mt-bg-occlusion';
+
+  let occ = parseFloat(localStorage.getItem(KEY));
+  if (isNaN(occ)) occ = 0.55; // frosted-glass default
+
+  function apply(v) {
+    occ = Math.max(0, Math.min(1, v));
+    // occlusion -> background-layer alpha (text/tooltips are separate, always 100%)
+    widget.style.setProperty('--bg-a1', (occ * 0.62).toFixed(3));
+    widget.style.setProperty('--bg-a2', (occ * 0.78).toFixed(3));
+    const pct = (occ * 100).toFixed(1) + '%';
+    fill.style.width = pct;
+    knob.style.left = pct;
+    localStorage.setItem(KEY, String(occ));
+  }
+
+  const ratio = (e) => {
+    const r = track.getBoundingClientRect();
+    return (e.clientX - r.left) / r.width;
+  };
+
+  let dragging = false;
+  track.addEventListener('pointerdown', (e) => {
+    dragging = true;
+    track.setPointerCapture(e.pointerId);
+    apply(ratio(e));
+  });
+  track.addEventListener('pointermove', (e) => {
+    if (dragging) apply(ratio(e));
+  });
+  const stop = () => {
+    dragging = false;
+  };
+  track.addEventListener('pointerup', stop);
+  track.addEventListener('pointercancel', stop);
+
+  apply(occ);
+})();

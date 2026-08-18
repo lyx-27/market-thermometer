@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <title>市场温度计 · Market Thermometer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="widget">
+      <!-- titlebar -->
+      <div class="titlebar">
+        <div class="drag-region"></div>
+        <div class="win-buttons">
+          <button id="pin" class="chip" title="Pin on top">📌</button>
+          <button id="refresh" class="chip" title="Refresh now">↻</button>
+          <button id="close" class="chip" title="Close">✕</button>
+        </div>
+      </div>
+
+      <!-- 体温条 · market temperature strip -->
+      <div class="pulse">
+        <div class="pulse-fng">
+          <svg class="gauge" viewBox="0 0 36 36" aria-hidden="true">
+            <circle class="gauge-track" cx="18" cy="18" r="15.5" />
+            <circle id="fng-arc" class="gauge-arc" cx="18" cy="18" r="15.5" />
+          </svg>
+          <div class="pulse-fng-txt">
+            <div id="fng-val" class="pulse-fng-val">—</div>
+            <div id="fng-lbl" class="pulse-fng-lbl">FEAR &amp; GREED</div>
+          </div>
+        </div>
+        <div class="pulse-sep"></div>
+        <div class="pulse-vol">
+          <div class="pulse-vol-label">TOTAL 24H VOLUME</div>
+          <div class="pulse-vol-line">
+            <span id="vol-val" class="pulse-vol-val">—</span>
+            <span id="vol-chg" class="chg flat">·</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- three compact columns -->
+      <div class="cols">
+        <section class="col">
+          <div class="col-head"><span class="dot dot-crypto"></span>Crypto</div>
+          <div id="crypto-rows" class="rows"></div>
+        </section>
+
+        <section class="col">
+          <div class="col-head"><span class="dot dot-flow"></span>Money Flow</div>
+          <div id="flow-rows" class="rows"></div>
+        </section>
+
+        <section class="col">
+          <div class="col-head"><span class="dot dot-stocks"></span>US Stocks</div>
+          <div id="stock-rows" class="rows"></div>
+        </section>
+      </div>
+
+      <!-- footer -->
+      <div class="footer">
+        <span id="status">Loading…</span>
+        <span id="updated"></span>
+      </div>
+    </div>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>

@@ -1,0 +1,21 @@
+# dependencies
+node_modules/
+demo-remotion/node_modules/
+
+# secrets / local config
+api key
+.env
+
+# build & render artifacts
+dist/
+demo-remotion/out/
+
+# personal desktop screenshots used only for local demo rendering
+demo-remotion/public/*.jpg
+
+# personal writing — not part of the product
+article.md
+
+# misc
+*.log
+.DS_Store

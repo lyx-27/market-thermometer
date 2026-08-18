@@ -49,12 +49,10 @@ function createWindow() {
     frame: false,
     transparent: true,
     resizable: true,
-    hasShadow: true,
+    hasShadow: false, // CSS box-shadow instead, so it scales smoothly with opacity
     fullscreenable: false,
     maximizable: false,
     skipTaskbar: true,
-    vibrancy: 'fullscreen-ui', // more uniformly translucent glass than 'under-window'
-    visualEffectState: 'active',
     backgroundColor: '#00000000',
     alwaysOnTop: true,
     webPreferences: {
@@ -85,6 +83,9 @@ ipcMain.handle('toggle-pin', () => {
   win.setAlwaysOnTop(next, 'floating');
   return next;
 });
+// Toggle native macOS vibrancy so the opacity slider can reach a fully
+// see-through background at 0 (CSS alone can't remove the OS frosted layer).
+
 
 app.whenReady().then(createWindow);
 

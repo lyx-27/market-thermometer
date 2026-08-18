@@ -182,9 +182,13 @@ document.getElementById('pin').addEventListener('click', async (e) => {
 
   function apply(v) {
     occ = Math.max(0, Math.min(1, v));
-    // occlusion -> background-layer alpha (text/tooltips are separate, always 100%)
-    widget.style.setProperty('--bg-a1', (occ * 0.62).toFixed(3));
-    widget.style.setProperty('--bg-a2', (occ * 0.78).toFixed(3));
+    // occlusion drives the BACKGROUND layer only (text/tooltips stay 100%).
+    // Everything is CSS so the transition is perfectly smooth:
+    //   alpha + blur + shadow all interpolate together, 0 = fully see-through.
+    widget.style.setProperty('--bg-a1', (occ * 0.9).toFixed(3));
+    widget.style.setProperty('--bg-a2', (occ * 0.95).toFixed(3));
+    widget.style.setProperty('--bg-blur', (occ * 30).toFixed(1) + 'px');
+    widget.style.setProperty('--bg-shadow', (occ * 0.45).toFixed(3));
     const pct = (occ * 100).toFixed(1) + '%';
     fill.style.width = pct;
     knob.style.left = pct;

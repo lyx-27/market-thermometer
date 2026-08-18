@@ -1,20 +1,23 @@
 # dependencies
 node_modules/
-demo-remotion/node_modules/
+
+# demo/showcase video project (kept local, not part of the product repo)
+demo-remotion/
 
 # secrets / local config
 api key
 .env
 
-# build & render artifacts
+# build artifacts
 dist/
-demo-remotion/out/
-
-# personal desktop screenshots used only for local demo rendering
-demo-remotion/public/*.jpg
 
 # personal writing — not part of the product
 article.md
+
+# local screenshots / scratch
+demo演示相关文件/
+Snipaste_*.jpg
+Snipaste_*.png
 
 # misc
 *.log

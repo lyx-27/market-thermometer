@@ -1,10 +1,11 @@
 #!/bin/bash
 # 双击本文件即可启动 市场温度计 / Market Thermometer 组件。
 # 组件会在后台运行；启动后这个终端窗口可以直接关掉。
-cd "/Users/a27/Tools/info" || exit 1
+cd "$(dirname "$0")" || exit 1
+DIR="$(pwd)"
 
 # 若已在运行则不重复启动
-if pgrep -f "electron .*Tools/info" >/dev/null 2>&1; then
+if pgrep -f "electron.*$DIR" >/dev/null 2>&1; then
   echo "组件已经在运行了。"
   sleep 1
   exit 0

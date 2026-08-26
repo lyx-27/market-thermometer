@@ -167,6 +167,159 @@ function chainDex(id, slug, name, meta) {
   };
 }
 
+// Resolved meme-token logos, cached by address (value = data URI, or null when the
+// token has no logo). Keeps us from re-downloading the image on every 45s refresh.
+const LOGO_CACHE = new Map();
+
+// Fetch a small image and inline it as a data: URI so it renders under the app's
+// strict CSP (img-src 'self' data:) without opening up arbitrary remote origins.
+// Proxy-capable, because image CDNs can be blocked on CN networks too.
+async function fetchDataUri(url, { timeout = 12000, proxy = false } = {}) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeout);
+  try {
+    const opts = { signal: ctrl.signal, headers: { 'User-Agent': UA } };
+    if (proxy && proxyAgent) opts.dispatcher = proxyAgent;
+    const res = await uFetch(url, opts);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const type = (res.headers.get('content-type') || 'image/png').split(';')[0];
+    const buf = Buffer.from(await res.arrayBuffer());
+    return `data:${type};base64,${buf.toString('base64')}`;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+// DexScreener CMS images take width/height/quality params; request a small icon.
+function shrinkLogo(url) {
+  try {
+    const u = new URL(url);
+    if (u.searchParams.has('width')) {
+      u.searchParams.set('width', '128');
+      u.searchParams.set('height', '128');
+      if (u.searchParams.has('quality')) u.searchParams.set('quality', '80');
+      return u.toString();
+    }
+  } catch (_) {
+    /* not a rewritable URL — use as-is */
+  }
+  return url;
+}
+
+// Resolve a token's logo to a ready-to-render data URI exactly once, then cache it.
+//   - success        -> cache + return the data URI
+//   - no image at all -> cache null (show pure text, don't try again)
+//   - transient fail  -> return undefined, stay uncached so a later refresh retries
+async function resolveLogo(address, imageUrl) {
+  if (LOGO_CACHE.has(address)) return LOGO_CACHE.get(address);
+  if (!imageUrl) {
+    LOGO_CACHE.set(address, null);
+    return null;
+  }
+  try {
+    const uri = await fetchDataUri(shrinkLogo(imageUrl), { proxy: true }).catch(() =>
+      fetchDataUri(shrinkLogo(imageUrl))
+    );
+    LOGO_CACHE.set(address, uri);
+    return uri;
+  } catch (_) {
+    return undefined;
+  }
+}
+
+// 48h price sparkline (1h candles) via GeckoTerminal's free OHLCV endpoint.
+// Cached ~5min per pool (the data is hourly, so no need to refetch every 45s).
+const CHART_CACHE = new Map(); // "net/pair" -> { ts, series }
+const CHART_TTL = 5 * 60 * 1000;
+// DexScreener chainId -> GeckoTerminal network slug (pass through when they match).
+const GT_NET = {
+  ethereum: 'eth',
+  bsc: 'bsc',
+  polygon: 'polygon_pos',
+  arbitrum: 'arbitrum',
+  optimism: 'optimism',
+  avalanche: 'avax',
+  base: 'base',
+  solana: 'solana',
+};
+
+async function tokenChart(chainId, pair) {
+  if (!chainId || !pair) return [];
+  const net = GT_NET[chainId] || chainId;
+  const key = `${net}/${pair}`;
+  const cached = CHART_CACHE.get(key);
+  if (cached && Date.now() - cached.ts < CHART_TTL) return cached.series;
+  const url = `https://api.geckoterminal.com/api/v2/networks/${net}/pools/${pair}/ohlcv/hour?aggregate=1&limit=48&currency=usd`;
+  try {
+    let j;
+    try {
+      j = await fetchJson(url, { proxy: true, timeout: 12000 });
+    } catch (_) {
+      j = await fetchJson(url, { timeout: 12000 });
+    }
+    const list = (j && j.data && j.data.attributes && j.data.attributes.ohlcv_list) || [];
+    // GeckoTerminal returns newest-first; reverse to chronological, take close (idx 4).
+    const series = list
+      .slice()
+      .reverse()
+      .map((r) => Number(r[4]))
+      .filter((v) => !isNaN(v));
+    if (series.length >= 2) CHART_CACHE.set(key, { ts: Date.now(), series });
+    return series.length >= 2 ? series : cached ? cached.series : [];
+  } catch (_) {
+    return cached ? cached.series : []; // keep last good chart if a refresh fails
+  }
+}
+
+// Any DEX-traded token, looked up by CONTRACT ADDRESS via DexScreener (any chain,
+// no API key). Shown as PRICE with its 24h change ("涨幅") + market cap. When a token
+// trades in several pools we take the deepest-liquidity pair as the canonical quote.
+function tokenDex(id, address, meta = {}) {
+  return async function () {
+    const base = { id, group: 'crypto', name: meta.name || id.toUpperCase(), sub: 'Price', unit: 'usd-price', ...meta };
+    const url = `https://api.dexscreener.com/latest/dex/tokens/${address}`;
+    try {
+      // DexScreener is intermittently blocked on CN networks (like CoinGecko), so
+      // try the local proxy first, then fall back to a direct connection.
+      let j;
+      try {
+        j = await fetchJson(url, { proxy: true, timeout: 12000 });
+      } catch (_) {
+        j = await fetchJson(url, { timeout: 12000 });
+      }
+      const pairs = (j && j.pairs) || [];
+      if (!pairs.length) throw new Error('no DEX pairs');
+      const best = pairs.reduce((a, b) =>
+        ((b.liquidity && b.liquidity.usd) || 0) > ((a.liquidity && a.liquidity.usd) || 0) ? b : a
+      );
+      const sym = (best.baseToken && best.baseToken.symbol) || base.name;
+      const pc = best.priceChange || {};
+      const marketCap =
+        best.marketCap != null ? Number(best.marketCap) : best.fdv != null ? Number(best.fdv) : null;
+      // Fetch the logo and the 48h chart concurrently (both are best-effort).
+      //   - Logo: manual local file (meta.logo) wins; else auto-fetch + inline. Stays
+      //     undefined when there's no logo -> renderer shows plain text, no placeholder.
+      //   - series: 48h/1h price sparkline; empty when unavailable -> no chart shown.
+      const [iconUrl, series] = await Promise.all([
+        meta.logo ? Promise.resolve(undefined) : resolveLogo(address, best.info && best.info.imageUrl),
+        tokenChart(best.chainId, best.pairAddress),
+      ]);
+      return {
+        ...base,
+        name: meta.name || sym,
+        ok: true,
+        value: Number(best.priceUsd),
+        changePct: pc.h24 != null ? Number(pc.h24) : null,
+        marketCap,
+        iconUrl,
+        series,
+      };
+    } catch (e) {
+      return { ...base, ok: false, value: null, changePct: null, marketCap: null, series: [], note: String(e.message || e) };
+    }
+  };
+}
+
 /* ------------------------- US STOCKS (Tencent) ---------------------------- */
 
 const STOCK_DEFS = [
@@ -216,6 +369,25 @@ async function usStocks() {
 
 /* --------------------------- provider registry ---------------------------- */
 
+// ---- Meme watchlist (swipe-right "MEME" page) -------------------------------
+// Tokens tracked by CONTRACT ADDRESS via DexScreener (any chain, no API key).
+// To watch another coin, append { id, address, name, sub, logo?, accent? }.
+//   - id     : short unique key (a-z0-9-)
+//   - address: the token contract address
+//   - name   : shown as the row title (falls back to the on-chain symbol)
+//   - sub    : small label under the name (e.g. "Cash Cat · RH")
+//   - logo   : optional file renderer/assets/logos/<logo>.svg; omit for a glyph
+//   - accent : optional brand color (reserved for future use)
+// These render on page 2 (group 'meme'), NOT on the macro dashboard.
+const MEME_WATCH = [
+  { id: 'cashcat', address: '0x020bfC650A365f8BB26819deAAbF3E21291018b4', name: 'CASHCAT', sub: 'Cash Cat · RH', accent: '#00c805' },
+  { id: 'cate', address: 'Ai66LHZG9MCzg1WKdawwqduVAXpNDUuV8M3uyq5ppump', name: 'CATE', sub: 'Catecoin · SOL', accent: '#8b5cf6' },
+  { id: 'pons', address: '0x39dBED3a2bd333467115dE45665cC57F813C4571', name: 'PONS', sub: 'Pons · RH', accent: '#38bdf8' },
+  { id: 'bnbcat', address: '0x3EFBfFf95576e1d23cF6Ead0AcD2E73F4d6A7777', name: 'BNBCAT', sub: 'Binance Cat · BSC', accent: '#f0b90b' },
+  { id: 'bluechip', address: '0xB200000000000000000000cFbdF64a8706a94a01', name: 'BLUECHIP', sub: 'Blue Chip · BASE', accent: '#2563eb' },
+  { id: 'cyberleek', address: 'ApZuxdpzMrbEYTGEzeY9afh5pj9d6qPRJCTgQYiipbKg', name: 'CYBERLEEK', sub: 'CyberLeek · SOL', accent: '#22c55e' },
+];
+
 const providers = [
   cryptoGlobal,
   fearGreed,
@@ -223,7 +395,12 @@ const providers = [
   chainDex('sol', 'solana', 'SOL', { accent: '#14f195', logo: 'solana' }),
   chainDex('bnb', 'bsc', 'BNB', { accent: '#f0b90b', logo: 'bnb' }),
   chainDex('hood-chain', 'robinhood-chain', 'Robinhood', { accent: '#00c805', logo: 'robinhood' }),
+  chainDex('base', 'base', 'Base', { accent: '#0052ff', logo: 'base' }),
   usStocks, // returns an array -> flattened below
+  // Meme watchlist -> group 'meme' -> rendered on the swipe-right page.
+  ...MEME_WATCH.map((t) =>
+    tokenDex(t.id, t.address, { group: 'meme', name: t.name, sub: t.sub, logo: t.logo, accent: t.accent })
+  ),
 ];
 
 async function fetchSnapshot() {

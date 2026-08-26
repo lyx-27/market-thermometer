@@ -63,8 +63,16 @@ function createWindow() {
   });
 
   // Behave like a desktop widget: float above normal windows, visible on all Spaces.
-  win.setAlwaysOnTop(true, 'floating');
-  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
+  // `alwaysOnTop` is already set in the constructor (works on every platform). The
+  // 'floating' level string and setVisibleOnAllWorkspaces are macOS/Linux concepts
+  // (Spaces / virtual desktops); on Windows they're unsupported no-ops, so we guard
+  // them and just keep the plain always-on-top behavior there.
+  if (process.platform === 'darwin' || process.platform === 'linux') {
+    win.setAlwaysOnTop(true, 'floating');
+    win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
+  } else {
+    win.setAlwaysOnTop(true);
+  }
 
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
 
@@ -80,12 +88,10 @@ ipcMain.handle('close-app', () => app.quit());
 ipcMain.handle('toggle-pin', () => {
   if (!win) return false;
   const next = !win.isAlwaysOnTop();
+  // 'floating' level is macOS-only; harmless/ignored on Windows & Linux.
   win.setAlwaysOnTop(next, 'floating');
   return next;
 });
-// Toggle native macOS vibrancy so the opacity slider can reach a fully
-// see-through background at 0 (CSS alone can't remove the OS frosted layer).
-
 
 app.whenReady().then(createWindow);
 

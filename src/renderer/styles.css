@@ -29,7 +29,10 @@ body {
   height: 100%;
   background: transparent;
   color: var(--w-100);
-  font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  /* Cross-platform stack: macOS uses SF (-apple-system); Windows uses Segoe UI for
+     Latin and Microsoft YaHei for CJK; both stay clean & sans, no layout shift. */
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Segoe UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow: hidden;
@@ -93,10 +96,16 @@ body {
   border-radius: 50%;
   background: var(--w-16);
   color: var(--w-100);
-  font-size: 8px;
-  line-height: 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
   cursor: pointer;
   transition: background 0.15s, transform 0.1s;
+}
+.chip svg {
+  width: 9px;
+  height: 9px;
+  display: block;
 }
 .chip:hover {
   background: var(--w-32);
@@ -249,6 +258,15 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.rows::-webkit-scrollbar {
+  width: 3px;
+}
+.rows::-webkit-scrollbar-thumb {
+  background: var(--w-16);
+  border-radius: 3px;
 }
 
 /* ------------------------------- price rows ------------------------------ */
@@ -348,7 +366,7 @@ body {
 
 /* --------------------------- money-flow rows ----------------------------- */
 .frow {
-  padding: 3px 3px 4px;
+  padding: 2px 3px 3px;
   margin: 0 -2px;
   border-radius: 7px;
   transition: background 0.15s ease;
@@ -363,7 +381,7 @@ body {
   gap: 5px;
 }
 .frow-bar {
-  margin-top: 3px;
+  margin-top: 2px;
   height: 3px;
   border-radius: 3px;
   background: var(--w-08);
@@ -443,4 +461,203 @@ body {
   transform: translate(-50%, -50%);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
   pointer-events: none;
+}
+
+/* --------------------- swipeable deck (macro ⟷ meme) --------------------- */
+.deck {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  z-index: 1;
+}
+.pages {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  transform: translateX(calc(-100% * var(--page, 0)));
+  transition: transform 0.4s cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: transform;
+}
+.page {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+/* --------------------------- meme watch page ----------------------------- */
+.page-meme {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.018));
+  border: 1px solid var(--w-08);
+  border-radius: 12px;
+  padding: 6px 9px 5px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.meme-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 1px 5px;
+  margin-bottom: 3px;
+  border-bottom: 1px solid var(--line);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--w-70);
+}
+.meme-count {
+  margin-left: auto;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--w-46);
+  text-transform: none;
+}
+.meme-rows {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+/* full-width meme row: [logo?] name/sub · market cap · price/change */
+.mrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 4px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+.mrow:hover {
+  background: var(--w-08);
+}
+.mrow-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.mrow .icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+.mrow .meta {
+  min-width: 0;
+}
+.mrow .name {
+  font-size: 12px;
+}
+.mrow .sub {
+  font-size: 7px;
+}
+.mrow-mc {
+  flex: 0 0 auto;
+  text-align: right;
+  padding-right: 2px;
+}
+.mc-label {
+  font-size: 6.5px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--w-32);
+  line-height: 1.1;
+}
+.mc-val {
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--w-70);
+  white-space: nowrap;
+  line-height: 1.15;
+}
+.mrow-chart {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+}
+.spark {
+  width: 66px;
+  height: 22px;
+  display: block;
+  overflow: visible;
+}
+.spark-line {
+  fill: none;
+  stroke-width: 1.4;
+  vector-effect: non-scaling-stroke;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.spark-area {
+  stroke: none;
+  opacity: 0.13;
+}
+.spark-up .spark-line {
+  stroke: var(--up);
+}
+.spark-up .spark-area {
+  fill: var(--up);
+}
+.spark-down .spark-line {
+  stroke: var(--down);
+}
+.spark-down .spark-area {
+  fill: var(--down);
+}
+.mrow .right {
+  flex: 0 0 auto;
+}
+.mrow .value {
+  font-size: 12px;
+}
+.meme-empty {
+  margin: auto;
+  text-align: center;
+  font-size: 9px;
+  letter-spacing: 0.4px;
+  color: var(--w-32);
+  padding: 16px 8px;
+}
+.meme-rows::-webkit-scrollbar {
+  width: 4px;
+}
+.meme-rows::-webkit-scrollbar-thumb {
+  background: var(--w-16);
+  border-radius: 4px;
+}
+
+/* ------------------------------ pager dots ------------------------------- */
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  -webkit-app-region: no-drag;
+}
+.pager-dot {
+  width: 5px;
+  height: 5px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--w-32);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.pager-dot:hover {
+  background: var(--w-70);
+}
+.pager-dot.is-active {
+  background: var(--w-88);
+  transform: scale(1.35);
 }

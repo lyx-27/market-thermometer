@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:" />
     <title>市场温度计 · Market Thermometer</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -12,55 +12,93 @@
       <div class="titlebar">
         <div class="drag-region"></div>
         <div class="win-buttons">
-          <button id="pin" class="chip" title="Pin on top">📌</button>
-          <button id="refresh" class="chip" title="Refresh now">↻</button>
-          <button id="close" class="chip" title="Close">✕</button>
+          <!-- inline SVG (currentColor) instead of emoji, so the icons render
+               identically on macOS and Windows regardless of system fonts -->
+          <button id="pin" class="chip" title="Pin on top" aria-label="Pin on top">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 17v5" />
+              <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" />
+            </svg>
+          </button>
+          <button id="refresh" class="chip" title="Refresh now" aria-label="Refresh now">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+            </svg>
+          </button>
+          <button id="close" class="chip" title="Close" aria-label="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
         </div>
       </div>
 
-      <!-- 体温条 · market temperature strip -->
-      <div class="pulse">
-        <div class="pulse-fng">
-          <svg class="gauge" viewBox="0 0 36 36" aria-hidden="true">
-            <circle class="gauge-track" cx="18" cy="18" r="15.5" />
-            <circle id="fng-arc" class="gauge-arc" cx="18" cy="18" r="15.5" />
-          </svg>
-          <div class="pulse-fng-txt">
-            <div id="fng-val" class="pulse-fng-val">—</div>
-            <div id="fng-lbl" class="pulse-fng-lbl">FEAR &amp; GREED</div>
-          </div>
+      <!-- swipeable deck: page 1 = macro dashboard · page 2 = meme watch -->
+      <div class="deck" id="deck">
+        <div class="pages" id="pages">
+          <!-- PAGE 1 · macro dashboard -->
+          <section class="page">
+            <!-- 体温条 · market temperature strip -->
+            <div class="pulse">
+              <div class="pulse-fng">
+                <svg class="gauge" viewBox="0 0 36 36" aria-hidden="true">
+                  <circle class="gauge-track" cx="18" cy="18" r="15.5" />
+                  <circle id="fng-arc" class="gauge-arc" cx="18" cy="18" r="15.5" />
+                </svg>
+                <div class="pulse-fng-txt">
+                  <div id="fng-val" class="pulse-fng-val">—</div>
+                  <div id="fng-lbl" class="pulse-fng-lbl">FEAR &amp; GREED</div>
+                </div>
+              </div>
+              <div class="pulse-sep"></div>
+              <div class="pulse-vol">
+                <div class="pulse-vol-label">TOTAL 24H VOLUME</div>
+                <div class="pulse-vol-line">
+                  <span id="vol-val" class="pulse-vol-val">—</span>
+                  <span id="vol-chg" class="chg flat">·</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- three compact columns -->
+            <div class="cols">
+              <section class="col">
+                <div class="col-head"><span class="dot dot-crypto"></span>Crypto</div>
+                <div id="crypto-rows" class="rows"></div>
+              </section>
+
+              <section class="col">
+                <div class="col-head"><span class="dot dot-flow"></span>Money Flow</div>
+                <div id="flow-rows" class="rows"></div>
+              </section>
+
+              <section class="col">
+                <div class="col-head"><span class="dot dot-stocks"></span>US Stocks</div>
+                <div id="stock-rows" class="rows"></div>
+              </section>
+            </div>
+          </section>
+
+          <!-- PAGE 2 · meme watch -->
+          <section class="page page-meme">
+            <div class="meme-head">
+              <span class="dot dot-flow"></span>Meme Watch
+              <span id="meme-count" class="meme-count"></span>
+            </div>
+            <div id="meme-rows" class="meme-rows"></div>
+          </section>
         </div>
-        <div class="pulse-sep"></div>
-        <div class="pulse-vol">
-          <div class="pulse-vol-label">TOTAL 24H VOLUME</div>
-          <div class="pulse-vol-line">
-            <span id="vol-val" class="pulse-vol-val">—</span>
-            <span id="vol-chg" class="chg flat">·</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- three compact columns -->
-      <div class="cols">
-        <section class="col">
-          <div class="col-head"><span class="dot dot-crypto"></span>Crypto</div>
-          <div id="crypto-rows" class="rows"></div>
-        </section>
-
-        <section class="col">
-          <div class="col-head"><span class="dot dot-flow"></span>Money Flow</div>
-          <div id="flow-rows" class="rows"></div>
-        </section>
-
-        <section class="col">
-          <div class="col-head"><span class="dot dot-stocks"></span>US Stocks</div>
-          <div id="stock-rows" class="rows"></div>
-        </section>
       </div>
 
       <!-- footer -->
       <div class="footer">
         <span id="status">Loading…</span>
+        <div class="pager" id="pager">
+          <button class="pager-dot is-active" data-page="0" title="Market" aria-label="Market page"></button>
+          <button class="pager-dot" data-page="1" title="Meme watch" aria-label="Meme watch page"></button>
+        </div>
         <span id="updated"></span>
       </div>
 

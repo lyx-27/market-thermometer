@@ -105,6 +105,61 @@ function flowRow(m, maxVal) {
     </div>`;
 }
 
+// Compact 48h price sparkline (line + faint area), colored by the 48h trend.
+// Returns '' when there aren't enough points, so the row simply shows no chart.
+function sparklineSvg(series) {
+  if (!Array.isArray(series) || series.length < 2) return '';
+  const w = 66;
+  const h = 22;
+  const pad = 1.5;
+  const min = Math.min(...series);
+  const max = Math.max(...series);
+  const range = max - min || 1;
+  const n = series.length;
+  const X = (i) => pad + (i / (n - 1)) * (w - 2 * pad);
+  const Y = (v) => h - pad - ((v - min) / range) * (h - 2 * pad);
+  let d = '';
+  for (let i = 0; i < n; i++) d += (i ? ' L' : 'M') + X(i).toFixed(1) + ',' + Y(series[i]).toFixed(1);
+  const area = `${d} L${X(n - 1).toFixed(1)},${(h - pad).toFixed(1)} L${X(0).toFixed(1)},${(h - pad).toFixed(1)} Z`;
+  const up = series[n - 1] >= series[0];
+  return `<svg class="spark ${up ? 'spark-up' : 'spark-down'}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><path class="spark-area" d="${area}" /><path class="spark-line" d="${d}" /></svg>`;
+}
+
+// Meme watch row: [logo?] name/sub · 48h chart · market cap · price/change.
+// The logo is shown ONLY when we actually have an image (auto-fetched data URI, or a
+// manually configured local file). With no image we render pure text and reserve NO
+// space for an icon — a failed image also removes itself so nothing is left behind.
+function memeRow(m) {
+  const dim = m.ok ? '' : 'dim';
+  let icon = '';
+  if (m.iconUrl) {
+    icon = `<img class="icon" src="${m.iconUrl}" alt="" onerror="this.remove()" />`;
+  } else if (m.logo) {
+    icon = `<img class="icon" src="assets/logos/${m.logo}.svg" alt="" onerror="this.remove()" />`;
+  }
+  const mc = m.marketCap != null ? fmtUsd(m.marketCap) : '—';
+  const chart = sparklineSvg(m.series);
+  return `
+    <div class="mrow ${dim}" title="${m.note || ''}">
+      <div class="mrow-id">
+        ${icon}
+        <div class="meta">
+          <div class="name">${m.name}</div>
+          <div class="sub">${m.sub || ''}</div>
+        </div>
+      </div>
+      ${chart ? `<div class="mrow-chart" title="48h · 1h">${chart}</div>` : ''}
+      <div class="mrow-mc">
+        <div class="mc-label">MCAP</div>
+        <div class="mc-val">${mc}</div>
+      </div>
+      <div class="right">
+        <span class="value">${fmtValue(m)}</span>
+        <span class="chg ${chgClass(m.changePct)}">${chgText(m.changePct)}</span>
+      </div>
+    </div>`;
+}
+
 /* ------------------------------- rendering ------------------------------- */
 
 function render(snap) {
@@ -144,6 +199,17 @@ function render(snap) {
 
   document.getElementById('stock-rows').innerHTML = stocks.map(stockRow).join('');
 
+  // page 2 — meme watch
+  const memes = metrics.filter((m) => m.group === 'meme');
+  const memeRowsEl = document.getElementById('meme-rows');
+  if (memeRowsEl) {
+    memeRowsEl.innerHTML = memes.length
+      ? memes.map(memeRow).join('')
+      : '<div class="meme-empty">No meme coins on the watchlist yet.</div>';
+  }
+  const memeCountEl = document.getElementById('meme-count');
+  if (memeCountEl) memeCountEl.textContent = memes.length ? String(memes.length) : '';
+
   // footer
   const okCount = metrics.filter((m) => m.ok).length;
   document.getElementById('status').textContent = `${okCount}/${metrics.length} live`;
@@ -164,9 +230,57 @@ document.getElementById('refresh').addEventListener('click', () => {
 });
 document.getElementById('close').addEventListener('click', () => window.api.closeApp());
 document.getElementById('pin').addEventListener('click', async (e) => {
+  // capture the button now: after `await`, event.currentTarget is null and
+  // event.target could be the inner <svg>/<path> rather than the button.
+  const btn = e.currentTarget;
   const pinned = await window.api.togglePin();
-  e.target.style.opacity = pinned ? '1' : '0.4';
+  btn.style.opacity = pinned ? '1' : '0.4';
 });
+
+/* ------------------ page carousel (macro ⟷ meme watch) ------------------- */
+(function initPager() {
+  const pages = document.getElementById('pages');
+  const deck = document.getElementById('deck');
+  const dots = Array.from(document.querySelectorAll('.pager-dot'));
+  if (!pages || !deck) return;
+  const PAGE_COUNT = 2;
+  let page = 0;
+  let locked = false;
+  let unlock = null;
+
+  function go(p) {
+    p = Math.max(0, Math.min(PAGE_COUNT - 1, p));
+    if (p === page) return;
+    page = p;
+    pages.style.setProperty('--page', String(page));
+    dots.forEach((d, i) => d.classList.toggle('is-active', i === page));
+  }
+
+  // click the dots to jump to a page
+  dots.forEach((d) => d.addEventListener('click', () => go(Number(d.dataset.page))));
+
+  // trackpad two-finger horizontal swipe (vertical wheel still scrolls lists)
+  deck.addEventListener(
+    'wheel',
+    (e) => {
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return; // vertical intent -> let it scroll
+      e.preventDefault();
+      if (Math.abs(e.deltaX) < 18) return; // ignore tiny nudges
+      clearTimeout(unlock);
+      unlock = setTimeout(() => (locked = false), 200); // release shortly after momentum ends
+      if (locked) return; // at most one page change per gesture
+      locked = true;
+      go(page + (e.deltaX > 0 ? 1 : -1));
+    },
+    { passive: false }
+  );
+
+  // arrow keys as a keyboard fallback
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight') go(page + 1);
+    else if (e.key === 'ArrowLeft') go(page - 1);
+  });
+})();
 
 /* ---- background-opacity slider (background layer ONLY; text stays 100%) ---- */
 (function initOpacitySlider() {

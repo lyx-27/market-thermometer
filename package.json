@@ -2,7 +2,7 @@
   "name": "market-thermometer",
   "version": "0.1.0",
   "private": true,
-  "description": "市场温度计 / Market Thermometer — a macOS frosted-glass desktop widget for a one-glance read of crypto, US stocks, on-chain money flow and market sentiment.",
+  "description": "市场温度计 / Market Thermometer — a cross-platform (macOS & Windows) frosted-glass desktop widget for a one-glance read of crypto, US stocks, on-chain money flow, market sentiment and a meme-coin watchlist.",
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",

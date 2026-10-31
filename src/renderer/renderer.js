@@ -21,6 +21,9 @@ function fmtPrice(n) {
   if (n == null || isNaN(n)) return '—';
   if (n >= 1000) return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
   if (n >= 1) return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Sub-cent memecoins need significant digits, not fixed decimals: at 4 decimals
+  // $0.0002236 and $0.0003645 both collapse to "$0.0002"/"$0.0004".
+  if (n < 0.01) return '$' + n.toLocaleString('en-US', { maximumSignificantDigits: 3 });
   return '$' + n.toFixed(4);
 }
 
@@ -55,12 +58,21 @@ function iconHtml(m) {
 
 function priceRow(m) {
   const dim = m.ok ? '' : 'dim';
+  // With a recorded buy, the sub line becomes my average entry + P/L% (more useful
+  // than the static "Price" label, and keeps the row the same height).
+  const p = m.position;
+  // Kept terse on purpose: this sub line has ~87px in the narrow Crypto column, so
+  // "MY @ $103,500 -12.34%" would clip. One decimal is plenty at a glance.
+  const plShort = (v) => (v == null ? '·' : (v >= 0 ? '+' : '') + v.toFixed(1) + '%');
+  const sub = p
+    ? `MY ${fmtPrice(p.entryPrice)} <span class="pos-pl ${chgClass(p.plPct)}">${plShort(p.plPct)}</span>`
+    : m.sub || '';
   return `
-    <div class="row ${dim}" title="${m.note || ''}">
+    <div class="row ${dim}" title="${p ? 'my avg entry ' + fmtPrice(p.entryPrice) + ' · invested $' + p.invested.toFixed(2) : m.note || ''}">
       ${iconHtml(m)}
       <div class="meta">
         <div class="name">${m.name}</div>
-        <div class="sub">${m.sub || ''}</div>
+        <div class="sub">${sub}</div>
       </div>
       <div class="right">
         <span class="value">${fmtValue(m)}</span>
@@ -139,6 +151,13 @@ function memeRow(m) {
   }
   const mc = m.marketCap != null ? fmtUsd(m.marketCap) : '—';
   const chart = sparklineSvg(m.series);
+  // my position: entry market cap + P/L%. The cell is ALWAYS rendered (empty when I
+  // hold nothing) so every column — charts included — lines up across all rows.
+  const p = m.position;
+  const posCol = p
+    ? `<div class="pos-label">MY @ ${fmtUsd(p.entryMcap)}</div>
+       <div class="pos-line"><span class="chg ${chgClass(p.plPct)}">${chgText(p.plPct)}</span></div>`
+    : '';
   return `
     <div class="mrow ${dim}" title="${m.note || ''}">
       <div class="mrow-id">
@@ -148,7 +167,7 @@ function memeRow(m) {
           <div class="sub">${m.sub || ''}</div>
         </div>
       </div>
-      ${chart ? `<div class="mrow-chart" title="48h · 1h">${chart}</div>` : ''}
+      <div class="mrow-chart" title="48h · 1h">${chart}</div>
       <div class="mrow-mc">
         <div class="mc-label">MCAP</div>
         <div class="mc-val">${mc}</div>
@@ -157,6 +176,7 @@ function memeRow(m) {
         <span class="value">${fmtValue(m)}</span>
         <span class="chg ${chgClass(m.changePct)}">${chgText(m.changePct)}</span>
       </div>
+      <div class="mrow-pos">${posCol}</div>
     </div>`;
 }
 
@@ -199,16 +219,21 @@ function render(snap) {
 
   document.getElementById('stock-rows').innerHTML = stocks.map(stockRow).join('');
 
-  // page 2 — meme watch
-  const memes = metrics.filter((m) => m.group === 'meme');
-  const memeRowsEl = document.getElementById('meme-rows');
-  if (memeRowsEl) {
-    memeRowsEl.innerHTML = memes.length
-      ? memes.map(memeRow).join('')
-      : '<div class="meme-empty">No meme coins on the watchlist yet.</div>';
-  }
-  const memeCountEl = document.getElementById('meme-count');
-  if (memeCountEl) memeCountEl.textContent = memes.length ? String(memes.length) : '';
+  // pages 2 & 3 — token lists (same row layout, different buckets)
+  const renderList = (group, rowsId, countId, emptyMsg) => {
+    // `muted` coins are still fetched (for pump alerts) but deliberately not drawn
+    const items = metrics.filter((m) => m.group === group && !m.muted);
+    const rowsEl = document.getElementById(rowsId);
+    if (rowsEl) {
+      rowsEl.innerHTML = items.length
+        ? items.map(memeRow).join('')
+        : `<div class="list-empty">${emptyMsg}</div>`;
+    }
+    const countEl = document.getElementById(countId);
+    if (countEl) countEl.textContent = items.length ? String(items.length) : '';
+  };
+  renderList('meme', 'meme-rows', 'meme-count', 'No meme coins on the watchlist yet.');
+  renderList('onchain', 'onchain-rows', 'onchain-count', 'No onchain projects on the watchlist yet.');
 
   // footer
   const okCount = metrics.filter((m) => m.ok).length;
@@ -243,7 +268,7 @@ document.getElementById('pin').addEventListener('click', async (e) => {
   const deck = document.getElementById('deck');
   const dots = Array.from(document.querySelectorAll('.pager-dot'));
   if (!pages || !deck) return;
-  const PAGE_COUNT = 2;
+  const PAGE_COUNT = dots.length || 3; // market · meme watch · onchain project
   let page = 0;
   let locked = false;
   let unlock = null;

@@ -42,6 +42,8 @@ Or, to run in the background (you can close the terminal afterwards):
 - **macOS** — double-click **`启动组件.command`**
 - **Windows** — double-click **`start.bat`** (details in [WINDOWS.md](WINDOWS.md))
 
+These detach the widget from the terminal (via `nohup`), so it keeps running after you close the window — and it won't be killed when the shell or editor that launched it exits. They also no-op if the widget is already running. Running `npm start` directly instead ties the widget's lifetime to that terminal.
+
 The widget appears in the top-right of your screen. Hover it to reveal pin / refresh / close.
 
 ## Meme Watch
@@ -52,6 +54,26 @@ Swipe right — a two-finger horizontal trackpad swipe, the dots in the footer, 
 - **Price & 24h change**.
 - **Market cap** — falls back to fully-diluted valuation (FDV) when a market cap isn't reported.
 - **48h mini-chart** — a 1-hour-resolution sparkline, tinted green/red by the 48h trend.
+- **My position** — when you've recorded a buy: the market cap you entered at, plus live P/L%.
+
+Columns are laid out on a fixed grid, so charts and figures line up across every row whether or not a coin has chart data or a recorded buy.
+
+### Track your own buys
+
+Record a buy and the row gains a position readout (entry market cap + live P/L%):
+
+```bash
+node record-buy.js cate 500            # $500, entry captured at the current market cap
+node record-buy.js ai 300 90000000     # $300 with an explicit entry market cap ($90M)
+```
+
+Multiple buys in the same coin are dollar-weighted into a single average entry. Records live in `positions.json`, which is **gitignored** — your amounts and cost basis never leave your machine. See `positions.example.json` for the format, or edit it by hand. To close a position, move its buys into the file's `_closed` section (keeps the history, drops it from P/L).
+
+### Drop alerts
+
+If a watched coin falls more than **20%** over 48h, the widget plays a short chime — once at -20%, once again at -40%. A level re-arms only after the coin recovers above it, and the first refresh after launch is silent so you're never greeted by alarms for a drop that already happened.
+
+Point it at your own sound with `MT_ALERT_SOUND=/path/to/sound.aiff`; otherwise it uses the system chime.
 
 ### Add or remove a coin
 
@@ -59,13 +81,15 @@ Edit the `MEME_WATCH` list near the top of `src/data/providers.js`:
 
 ```js
 const MEME_WATCH = [
-  { id: 'cashcat', address: '0x020bfC…018b4', name: 'CASHCAT', sub: 'Cash Cat · RH' },
-  { id: 'cate',    address: 'Ai66…pump',      name: 'CATE',    sub: 'Catecoin · SOL' },
-  // add a line: { id, address, name, sub }  — id lowercase & unique
+  { id: 'cashcat', address: '0x020bfC…018b4', name: 'CASHCAT', sub: 'Cash Cat · RH', net: 'robinhood' },
+  { id: 'cate',    address: 'Ai66…pump',      name: 'CATE',    sub: 'Catecoin · SOL', net: 'solana' },
+  // add a line: { id, address, name, sub, net }  — id lowercase & unique
 ];
 ```
 
-Any token listed on DexScreener works — EVM or Solana, just use its contract address. Market cap, logo and the 48h chart are filled in automatically; restart the widget to apply.
+Any token listed on DexScreener works — EVM or Solana, just use its contract address. Market cap, logo, the 48h chart and your position are filled in automatically; restart the widget to apply.
+
+`net` is the token's network slug (`robinhood`, `solana`, `base`, `bsc`, `eth`, …). It's optional but worth setting: it's what the fallback data source uses if the primary one is unreachable.
 
 ## API Key Setup
 
@@ -94,8 +118,10 @@ export MARKET_PROXY=http://127.0.0.1:7897
 | Crypto Fear & Greed | alternative.me |
 | Global volume, BTC/ETH price | CoinGecko (demo key; proxy-capable) |
 | US indices & stocks | Tencent quotes |
-| Meme-coin price, market cap & logo | DexScreener (proxy-capable) |
+| Meme-coin price, market cap & logo | DexScreener, falling back to GeckoTerminal (both proxy-capable) |
 | Meme-coin 48h price chart | GeckoTerminal (proxy-capable) |
+
+Meme-coin data uses two sources: DexScreener first, GeckoTerminal as a fallback if it can't be reached. If both fail, the last good numbers are kept for up to 30 minutes (marked stale) rather than blanking the rows.
 
 ## Tech
 

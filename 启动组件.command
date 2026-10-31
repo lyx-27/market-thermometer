@@ -4,8 +4,8 @@
 cd "$(dirname "$0")" || exit 1
 DIR="$(pwd)"
 
-# 若已在运行则不重复启动
-if pgrep -f "electron.*$DIR" >/dev/null 2>&1; then
+# 若已在运行则不重复启动（匹配运行中的 Electron 二进制的绝对路径）
+if pgrep -f "$DIR/node_modules/electron" >/dev/null 2>&1; then
   echo "组件已经在运行了。"
   sleep 1
   exit 0

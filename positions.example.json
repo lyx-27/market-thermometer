@@ -1,0 +1,10 @@
+{
+  "_comment": "Copy the shape below into positions.json (which is gitignored). Keys are coin ids from MEME_WATCH in src/data/providers.js (e.g. cate, pons, bluechip, ai). Each coin holds a list of buys; each buy = { amount: USD invested, mcap: market cap at entry in USD }. You may use \"price\" instead of \"mcap\". Multiple buys are dollar-weighted into one average entry. Easiest way to add a buy: node record-buy.js <coinId> <amountUSD> [entryMcap]",
+  "cate": [
+    { "amount": 500, "mcap": 30000000 }
+  ],
+  "ai": [
+    { "amount": 300, "mcap": 90000000 },
+    { "amount": 200, "mcap": 110000000 }
+  ]
+}

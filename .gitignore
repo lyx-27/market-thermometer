@@ -8,6 +8,15 @@ demo-remotion/
 api key
 .env
 
+# personal position records (buy prices / amounts)
+positions.json
+
+# on-disk API cache (logos / charts) + alert state — regenerated automatically
+.cache/
+
+# local runtime logs (alert history)
+logs/
+
 # build artifacts
 dist/
 

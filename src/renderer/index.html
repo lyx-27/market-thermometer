@@ -82,12 +82,21 @@
           </section>
 
           <!-- PAGE 2 · meme watch -->
-          <section class="page page-meme">
-            <div class="meme-head">
+          <section class="page page-list">
+            <div class="list-head">
               <span class="dot dot-flow"></span>Meme Watch
-              <span id="meme-count" class="meme-count"></span>
+              <span id="meme-count" class="list-count"></span>
             </div>
-            <div id="meme-rows" class="meme-rows"></div>
+            <div id="meme-rows" class="list-rows"></div>
+          </section>
+
+          <!-- PAGE 3 · onchain projects -->
+          <section class="page page-list">
+            <div class="list-head">
+              <span class="dot dot-crypto"></span>Onchain Project
+              <span id="onchain-count" class="list-count"></span>
+            </div>
+            <div id="onchain-rows" class="list-rows"></div>
           </section>
         </div>
       </div>
@@ -98,6 +107,7 @@
         <div class="pager" id="pager">
           <button class="pager-dot is-active" data-page="0" title="Market" aria-label="Market page"></button>
           <button class="pager-dot" data-page="1" title="Meme watch" aria-label="Meme watch page"></button>
+          <button class="pager-dot" data-page="2" title="Onchain project" aria-label="Onchain project page"></button>
         </div>
         <span id="updated"></span>
       </div>

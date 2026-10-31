@@ -58,6 +58,24 @@
 - **Launcher double-start.** The "already running?" check used a pattern that could
   never match, so repeated launches stacked up extra instances.
 
+### Added — encrypted backup for position records
+
+`positions.json` holds real amounts and cost basis, so it's gitignored — which left
+it with no backup at all. `backup-positions.sh` now encrypts it (AES-256-CBC,
+PBKDF2, 200k iterations) into `~/.market-thermometer-backups/`, **outside the repo**.
+
+It stays out of the repo on purpose: this repo is public, and a public encrypted blob
+is permanently harvestable while git history can't be reliably erased — so a future
+passphrase leak would expose the full position history retroactively. A local
+encrypted copy gives the backup without that exposure.
+
+The passphrase is generated once and kept in the macOS Keychain (encrypted, tied to
+your login) rather than on disk; it's passed to openssl over a file descriptor so it
+appears in neither argv nor the environment. Each backup is decrypted and compared
+against the source before being kept, so a corrupt backup is never left behind.
+Retrieve the passphrase with `./backup-positions.sh passphrase` and store it in a
+password manager — without it, a reinstalled machine means unreadable backups.
+
 ### Fixed — alert spam, and alert history was unauditable
 
 - **Drop alerts re-fired on every dip.** The −20% / −40% levels re-armed at the exact

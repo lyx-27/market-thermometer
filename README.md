@@ -69,6 +69,8 @@ node record-buy.js ai 300 90000000     # $300 with an explicit entry market cap 
 
 Multiple buys in the same coin are dollar-weighted into a single average entry. Records live in `positions.json`, which is **gitignored** — your amounts and cost basis never leave your machine. See `positions.example.json` for the format, or edit it by hand. To close a position, move its buys into the file's `_closed` section (keeps the history, drops it from P/L).
 
+Because that file is gitignored, it has no backup. `./backup-positions.sh backup` writes an encrypted copy (AES-256, PBKDF2) to `~/.market-thermometer-backups/` — outside the repo, since this repo is public. The passphrase is generated once into your macOS Keychain; run `./backup-positions.sh passphrase` and keep a copy in a password manager, or a reinstalled machine leaves the backups unreadable. `restore` decrypts the newest backup.
+
 ### Drop alerts
 
 If a watched coin falls more than **20%** over 48h, the widget plays a short chime — once at -20%, once again at -40%. A level re-arms only after the coin recovers above it, and the first refresh after launch is silent so you're never greeted by alarms for a drop that already happened.
